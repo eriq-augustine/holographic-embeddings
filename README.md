@@ -9,7 +9,7 @@ Maximilian Nickel, Lorenzo Rosasco, Tomaso Poggio, AAAI 2016.
 
 ## Install 
 
-To run the experiments, first install [scikit-kge](https://github.com/mnick/scikit-kge),
+To run the experiments, first install [scikit-kge](https://github.com/eriq-augustine/scikit-kge),
 An open-source python library to compute various knowledge graph embeddings including
 
 - Holographic Embeddings (HolE)
