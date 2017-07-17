@@ -4,6 +4,7 @@ import numpy as np
 from numpy import argsort
 from collections import defaultdict as ddict
 import pickle
+import os
 import timeit
 import logging
 from sklearn.metrics import precision_recall_curve, auc, roc_auc_score
@@ -151,9 +152,66 @@ class Experiment(object):
             trn.__class__.__name__,
             self.args)
         )
+
         trn.fit(xs, ys)
         self.callback(trn, with_eval=True)
 
+        self.eriqHacks(trn, data)
+
+    # Some additional code I need run for other experiments.
+    # Will write out the embeddings and calcualte some energies.
+    def eriqHacks(self, trainer, data):
+        outDir = '.'
+        if (self.args.fout is not None):
+            outDir = os.path.dirname(self.args.fout)
+
+        with open(os.path.join(outDir, 'hole.entity2vec'), 'w') as outFile:
+            outFile.write("\n".join(["\t".join([str(item) for item in row]) for row in trainer.model.E]))
+            outFile.write("\n")
+
+        with open(os.path.join(outDir, 'hole.relation2vec'), 'w') as outFile:
+            outFile.write("\n".join(["\t".join([str(item) for item in row]) for row in trainer.model.R]))
+            outFile.write("\n")
+
+        # Check to see if the energy files exist.
+        energyFiles = []
+
+        positivePath = os.path.join(outDir, 'positive_targets.txt')
+        if (os.path.isfile(positivePath)):
+            energyFiles.append((positivePath, os.path.join(outDir, 'eval_energies_positive.txt')))
+
+        negativePath = os.path.join(outDir, 'negative_targets.txt')
+        if (os.path.isfile(negativePath)):
+            energyFiles.append((negativePath, os.path.join(outDir, 'eval_energies_negative.txt')))
+
+        allEntities = list(data['entities'])
+        allRelations = list(data['relations'])
+
+        for (inPath, outPath) in energyFiles:
+            heads = []
+            tails = []
+            relations = []
+
+            with open(inPath, 'r') as inFile:
+                for line in inFile:
+                    parts = line.strip().split("\t")
+
+                    # Need to lookup the ids for each record.
+                    # Pretty inefficient, but the energy count is not great.
+                    heads.append(allEntities.index(parts[0]))
+                    tails.append(allEntities.index(parts[1]))
+                    relations.append(allRelations.index(parts[2]))
+
+            heads = np.array(heads)
+            tails = np.array(tails)
+            relations = np.array(relations)
+
+            scores = trainer.model._scores(heads, relations, tails)
+            data = zip(heads, tails, relations, scores)
+
+            with open(outPath, 'w') as outFile:
+                outFile.write("\n".join(["\t".join([str(item) for item in row]) for row in data]))
+                outFile.write("\n")
 
 class FilteredRankingEval(object):
 
